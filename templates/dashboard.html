@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetWatch AI — Network Anomaly Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0f14;
+    --panel: #10181f;
+    --panel-border: #1c2933;
+    --grid-line: #182430;
+    --text-primary: #d9e6ee;
+    --text-muted: #5f7787;
+    --ok: #3ecf8e;
+    --warn: #e8a33d;
+    --critical: #e8555a;
+    --info: #4fa8d8;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--sans);
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 32px 32px;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--panel-border);
+    margin-bottom: 20px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 8px var(--ok);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+
+  .brand h1 {
+    font-family: var(--mono);
+    font-size: 18px;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+
+  .brand .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .stats {
+    display: flex;
+    gap: 28px;
+  }
+
+  .stat {
+    text-align: right;
+  }
+
+  .stat .label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .stat .value {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+
+  .stat .value.critical { color: var(--critical); }
+  .stat .value.ok { color: var(--ok); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+  }
+
+  .charts { display: flex; flex-direction: column; gap: 16px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 16px 18px;
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+  }
+
+  .panel-header h2 {
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+  }
+
+  .panel-header .current {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+
+  .chart-wrap { height: 140px; }
+
+  .feed-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .feed-panel h2 {
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    max-height: 560px;
+  }
+
+  .feed-item {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    padding: 8px 10px;
+    border-radius: 3px;
+    border-left: 2px solid var(--panel-border);
+    background: rgba(255,255,255,0.02);
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .feed-item.anomaly {
+    border-left: 2px solid var(--critical);
+    background: rgba(232, 85, 90, 0.08);
+  }
+
+  .feed-item .time { color: var(--text-muted); }
+  .feed-item .tag { color: var(--critical); font-weight: 600; }
+  .feed-item.normal .tag { color: var(--ok); }
+
+  .empty-state {
+    font-family: var(--mono);
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+    padding: 40px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="dot"></div>
+    <div>
+      <h1>NETWATCH AI</h1>
+      <div class="tag">Real-time anomaly detection engine</div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat">
+      <div class="label">Data Points</div>
+      <div class="value ok" id="stat-total">0</div>
+    </div>
+    <div class="stat">
+      <div class="label">Anomalies Flagged</div>
+      <div class="value critical" id="stat-anomalies">0</div>
+    </div>
+    <div class="stat">
+      <div class="label">Status</div>
+      <div class="value ok" id="stat-status">MONITORING</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="charts">
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Latency (ms)</h2>
+        <span class="current" id="current-latency">—</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-latency"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Packet Loss (%)</h2>
+        <span class="current" id="current-loss">—</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-loss"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Bandwidth (Mbps)</h2>
+        <span class="current" id="current-bandwidth">—</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-bandwidth"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel feed-panel">
+    <h2>Live Event Feed</h2>
+    <div class="feed-list" id="feed-list">
+      <div class="empty-state">Waiting for data...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const REFRESH_MS = 3000;
+
+function makeChart(ctx, color) {
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'value',
+          data: [],
+          borderColor: color,
+          backgroundColor: color + '22',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.25,
+          fill: true,
+        },
+        {
+          label: 'anomaly',
+          data: [],
+          borderColor: 'transparent',
+          backgroundColor: '#e8555a',
+          pointRadius: 4,
+          pointStyle: 'circle',
+          showLine: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: {
+          grid: { color: '#182430' },
+          ticks: { color: '#5f7787', font: { family: 'IBM Plex Mono', size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+const latencyChart = makeChart(document.getElementById('chart-latency'), '#4fa8d8');
+const lossChart = makeChart(document.getElementById('chart-loss'), '#e8a33d');
+const bandwidthChart = makeChart(document.getElementById('chart-bandwidth'), '#3ecf8e');
+
+function updateChart(chart, metrics, field) {
+  chart.data.labels = metrics.map(m => m.timestamp.slice(11, 19));
+  chart.data.datasets[0].data = metrics.map(m => m[field]);
+  chart.data.datasets[1].data = metrics.map(m => m.is_anomaly ? m[field] : null);
+  chart.update();
+}
+
+function renderFeed(metrics) {
+  const list = document.getElementById('feed-list');
+  const recent = [...metrics].reverse().slice(0, 40);
+  if (recent.length === 0) {
+    list.innerHTML = '<div class="empty-state">Waiting for data...</div>';
+    return;
+  }
+  list.innerHTML = recent.map(m => {
+    const isAnomaly = !!m.is_anomaly;
+    return `
+      <div class="feed-item ${isAnomaly ? 'anomaly' : 'normal'}">
+        <span class="time">${m.timestamp.slice(11, 19)}</span>
+        <span>lat ${m.latency_ms}ms · loss ${m.packet_loss_pct}% · bw ${m.bandwidth_mbps}mbps</span>
+        <span class="tag">${isAnomaly ? 'ANOMALY' : 'OK'}</span>
+      </div>`;
+  }).join('');
+}
+
+async function refresh() {
+  try {
+    const res = await fetch('/api/metrics');
+    const data = await res.json();
+    const metrics = data.metrics;
+
+    document.getElementById('stat-total').textContent = metrics.length;
+    document.getElementById('stat-anomalies').textContent = data.anomaly_count;
+
+    if (metrics.length > 0) {
+      const latest = metrics[metrics.length - 1];
+      document.getElementById('current-latency').textContent = latest.latency_ms + ' ms';
+      document.getElementById('current-loss').textContent = latest.packet_loss_pct + ' %';
+      document.getElementById('current-bandwidth').textContent = latest.bandwidth_mbps + ' mbps';
+    }
+
+    updateChart(latencyChart, metrics, 'latency_ms');
+    updateChart(lossChart, metrics, 'packet_loss_pct');
+    updateChart(bandwidthChart, metrics, 'bandwidth_mbps');
+    renderFeed(metrics);
+  } catch (e) {
+    console.error('Failed to refresh metrics', e);
+  }
+}
+
+// Seed historical data on first load, then start polling
+fetch('/api/seed', { method: 'POST' }).then(refresh);
+setInterval(refresh, REFRESH_MS);
+</script>
+
+</body>
+</html>

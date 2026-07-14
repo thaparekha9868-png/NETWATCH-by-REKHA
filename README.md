@@ -9,13 +9,9 @@
 
 ## Live Demo
 
-🚧 Coming Soon
+🔗 **[netwatch-by-rekha.onrender.com](https://netwatch-by-rekha.onrender.com/)**
 
-The application will be deployed on AWS EC2 with continuous monitoring and real-time anomaly visualization.
-
-**[Add your demo GIF or screenshot here once you run it locally]**
-
----
+> Note: hosted on Render's free tier, which sleeps after 15 minutes of inactivity. If the link hasn't been visited in a while, the first load may take ~30 seconds to wake up — please wait a moment rather than assuming it's broken.
 
 ## Why I built this ?
 

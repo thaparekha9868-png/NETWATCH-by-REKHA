@@ -87,10 +87,10 @@ network-anomaly-ai/
 
 ## Roadmap
 
-- [ ] Swap simulator for real ICMP/SNMP polling
-- [ ] Slack/email webhook alerts on anomaly detection
-- [ ] Deploy to AWS EC2 (free tier) with S3 for historical log archiving
+- [ ] Connect to real network monitoring (ICMP pings / SNMP polling) instead of the simulator
+- [ ] Slack/email alerts when a serious anomaly is flagged
 - [ ] Configurable sensitivity per network segment
+- [ ] Historical log archiving for long-term trend analysis
 
 ## Built by
  **Rekha Thapa** — BSc CSIT graduate with a background in **computer networking, Python development, and cloud technologies**.
